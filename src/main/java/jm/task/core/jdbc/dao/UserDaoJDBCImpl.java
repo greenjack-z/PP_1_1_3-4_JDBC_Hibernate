@@ -16,6 +16,17 @@ public class UserDaoJDBCImpl implements UserDao {
         //Empty constructor
     }
 
+    private void executeQueryTransactional(Connection connection, PreparedStatement preparedStatement) throws SQLException {
+        try {
+            connection.setAutoCommit(false);
+            preparedStatement.execute();
+            connection.commit();
+        } catch (Exception e) {
+            connection.rollback();
+            e.printStackTrace();
+        }
+    }
+
     public void createUsersTable() {
         String query = """
                     CREATE TABLE IF NOT EXISTS users (
@@ -26,8 +37,8 @@ public class UserDaoJDBCImpl implements UserDao {
                 );
                 """;
         try (Connection connection = Util.getConnection();
-             Statement statement = connection.createStatement()) {
-            statement.execute(query);
+             PreparedStatement statement = connection.prepareStatement(query)) {
+            executeQueryTransactional(connection, statement);
             logger.info("User table created.");
         } catch (SQLException e) {
             logger.info(e.getMessage());
@@ -37,8 +48,8 @@ public class UserDaoJDBCImpl implements UserDao {
     public void dropUsersTable() {
         String query = "DROP TABLE IF EXISTS users";
         try (Connection connection = Util.getConnection();
-             Statement statement = connection.createStatement()) {
-            statement.execute(query);
+             PreparedStatement statement = connection.prepareStatement(query)) {
+            executeQueryTransactional(connection, statement);
             logger.info("User table dropped.");
         } catch (SQLException e) {
             logger.info(e.getMessage());
@@ -55,7 +66,7 @@ public class UserDaoJDBCImpl implements UserDao {
             statement.setString(1, name);
             statement.setString(2, lastName);
             statement.setByte(3, age);
-            statement.executeUpdate();
+            executeQueryTransactional(connection, statement);
             logger.info("User added.");
         } catch (SQLException e) {
             logger.info(e.getMessage());
@@ -67,7 +78,7 @@ public class UserDaoJDBCImpl implements UserDao {
         try (Connection connection = Util.getConnection();
              PreparedStatement statement = connection.prepareStatement(query)) {
             statement.setLong(1, id);
-            statement.executeUpdate();
+            executeQueryTransactional(connection, statement);
             logger.info("User removed.");
         } catch (SQLException e) {
             logger.info(e.getMessage());
@@ -78,7 +89,7 @@ public class UserDaoJDBCImpl implements UserDao {
         String query = "SELECT * FROM users;";
         try (Connection connection = Util.getConnection();
              Statement statement = connection.createStatement()) {
-            statement.execute(query);
+            statement.executeQuery(query);
             logger.info("Users fetched.");
             ResultSet result = statement.getResultSet();
             List<User> users = new ArrayList<>();
@@ -96,8 +107,8 @@ public class UserDaoJDBCImpl implements UserDao {
     public void cleanUsersTable() {
         String query = "TRUNCATE TABLE users;";
         try (Connection connection = Util.getConnection();
-             Statement statement = connection.createStatement()) {
-            statement.execute(query);
+             PreparedStatement statement = connection.prepareStatement(query)) {
+            executeQueryTransactional(connection, statement);
             logger.info("Table cleaned.");
         } catch (SQLException e) {
             logger.info(e.getMessage());
