@@ -2,7 +2,9 @@ package jm.task.core.jdbc.dao;
 
 import jm.task.core.jdbc.model.User;
 import jm.task.core.jdbc.util.Util;
+import org.hibernate.HibernateException;
 import org.hibernate.Session;
+import org.hibernate.Transaction;
 import org.hibernate.query.Query;
 
 import javax.persistence.TypedQuery;
@@ -19,7 +21,6 @@ public class UserDaoHibernateImpl implements UserDao {
         //Empty constructor;
     }
 
-
     @Override
     public void createUsersTable() {
         String query = """
@@ -30,67 +31,88 @@ public class UserDaoHibernateImpl implements UserDao {
                     age TINYINT UNSIGNED NOT NULL
                 );
                 """;
+        Transaction transaction = null;
         try (Session session = Util.getSession()) {
-            session.beginTransaction();
+            transaction = session.beginTransaction();
             session.createNativeQuery(query).executeUpdate();
-            session.getTransaction().commit();
+            transaction.commit();
             logger.info("Table created.");
+        } catch (HibernateException e) {
+            if (transaction != null) {
+                transaction.rollback();
+            }
         }
     }
 
     @Override
     public void dropUsersTable() {
         String query = "DROP TABLE IF EXISTS users";
+        Transaction transaction = null;
         try (Session session = Util.getSession()) {
-            session.beginTransaction();
+            transaction = session.beginTransaction();
             session.createNativeQuery(query).executeUpdate();
-            session.getTransaction().commit();
+            transaction.commit();
             logger.info("Table deleted.");
+        } catch (HibernateException e) {
+            if (transaction != null) {
+                transaction.rollback();
+            }
         }
     }
 
     @Override
     public void saveUser(String name, String lastName, byte age) {
         User user = new User(name, lastName, age);
+        Transaction transaction = null;
         try (Session session = Util.getSession()) {
-            session.beginTransaction();
+            transaction = session.beginTransaction();
             session.save(user);
-            session.getTransaction().commit();
+            transaction.commit();
             logger.info("User added.");
+        } catch (HibernateException e) {
+            if (transaction != null) {
+                transaction.rollback();
+            }
         }
     }
 
     @Override
     public void removeUserById(long id) {
+        Transaction transaction = null;
         try (Session session = Util.getSession()) {
-            session.beginTransaction();
+            transaction = session.beginTransaction();
             session.delete(session.get(User.class, id));
-            session.getTransaction().commit();
+            transaction.commit();
             logger.info("User deleted.");
+        } catch (HibernateException e) {
+            if (transaction != null) {
+                transaction.rollback();
+            }
         }
     }
 
     @Override
     public List<User> getAllUsers() {
+        String hql = "from User";
         try (Session session = Util.getSession()) {
-            CriteriaBuilder criteriaBuilder = session.getCriteriaBuilder();
-            CriteriaQuery<User> criteriaQuery = criteriaBuilder.createQuery(User.class);
-            Root<User> root = criteriaQuery.from(User.class);
-            CriteriaQuery<User> all = criteriaQuery.select(root);
-            TypedQuery<User> typedQuery = session.createQuery(all);
-            return typedQuery.getResultList();
+            return session.createQuery(hql, User.class).getResultList();
         }
     }
 
     @Override
     public void cleanUsersTable() {
+        Transaction transaction = null;
         try (Session session = Util.getSession()) {
             String hql = "delete from User";
-            Query<User> query = session.createQuery(hql);
-            session.beginTransaction();
+            Query query = session.createQuery(hql);
+            transaction = session.beginTransaction();
             query.executeUpdate();
-            session.getTransaction().commit();
+            transaction.commit();
             logger.info("Table cleared.");
+        } catch (HibernateException e) {
+            if (transaction != null) {
+                transaction.rollback();
+            }
         }
     }
 }
